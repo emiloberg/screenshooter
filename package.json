@@ -1,0 +1,15 @@
+{
+  "name": "screenshooter",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "fs-extra": "^2.0.0",
+    "kebab-case": "^1.0.0",
+    "nightmare": "^2.10.0",
+    "node-fetch": "^1.6.3",
+    "promise-map-series": "^0.2.3",
+    "sanitize-filename": "^1.6.1",
+    "vo": "^4.0.2"
+  }
+}
