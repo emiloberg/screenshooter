@@ -4,13 +4,23 @@ const Nightmare = require("nightmare")
 const vo = require("vo")
 const fs = require("fs-extra")
 const path = require("path")
-
+const urlModule = require("url")
 
 // BR, NX
 // const LOCALES = ["DK", "FI", "FI-SV", "FR", "DE", "GB", "IT", "MX", "NO", "ES", "SE", "NL"]
-const LOCALES = ["gb"]
-const API_ENDPOINT = "http://kitsune.izettle.com/api/pages"
-const DOMAIN = "https://www.izettle.com"
+const LOCALES = ["dk", "fi", "fi-sv"]
+const API_ENDPOINT = "http://kitsune.dev:3100/api/pages"
+const DOMAIN = "http://inugami.dev:4000"
+
+const folders = {}
+
+function removeLeadingSlash(str) {
+  return str.replace(/^\//, "")
+}
+
+function normalizeUrl(url) {
+  return removeLeadingSlash(urlModule.parse(url).pathname)
+}
 
 const sanitize = (str) => {
   str = str.replace(DOMAIN, "")
@@ -38,8 +48,43 @@ function fetchURLs() {
   .then(urls => urls.sort())
   .then(urls => urls.map(url => `${DOMAIN}${url}`))
   .then(urls => urls.map(url => run(url)))
+  // .then(urls => urls.slice(0, 3))
 }
 
+function getFolderName(curUrl, links) {
+  // Check if match and return
+  const normalizedCurUrl = normalizeUrl(curUrl);
+  if (folders.hasOwnProperty(normalizedCurUrl)) {
+    return folders[normalizedCurUrl]
+  }
+
+  const urls = links
+    .map(url => normalizeUrl(url))
+
+  // Get folder name
+  const kvm = {}
+  urls.forEach(url => {
+    const urlParts = url.split("/")
+    if (urlParts.length > 1) {
+      kvm[urlParts[0]] = urlParts[1]
+    } else {
+      kvm[urlParts[0]] = "start"
+    }
+  })
+  var name = "default"
+  if (kvm.hasOwnProperty("gb")) {
+    name = kvm.gb
+  } else if (kvm.hasOwnProperty("se")) {
+    name = kvm.se
+  }
+
+  // Save foldernames
+  urls.forEach(url => {
+    folders[url] = name
+  })
+
+  return name
+}
 
 function * run(url) {
   var nightmare = new Nightmare({
@@ -48,22 +93,29 @@ function * run(url) {
     height: 768
   })
 
-  var dimensions = yield nightmare.goto(url)
+  var browserData = yield nightmare.goto(url)
     .wait("body")
     .evaluate(function() {
       var body = document.querySelector("body")
+      var links = Array.prototype.slice.call(document.getElementsByTagName("link"))
+        .filter(a => a.rel === "alternate")
+        .map(a => a.href)
       return {
         height: body.scrollHeight,
-        width:body.scrollWidth
+        width: body.scrollWidth,
+        links: links
       }
     })
 
   console.dir(url)
 
-  yield nightmare.viewport(dimensions.width, dimensions.height)
+  const folderName = getFolderName(url, browserData.links)
+  fs.ensureDirSync(path.join(__dirname, "screenshots", folderName))
+
+  yield nightmare.viewport(browserData.width, browserData.height)
   .wait(1000)
   .screenshot(require("path")
-  .join(__dirname, "screenshots", `${sanitize(url)}.png`))
+  .join(__dirname, "screenshots", folderName, `${sanitize(url)}.png`))
 
   yield nightmare.end()
 }
