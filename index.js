@@ -6,11 +6,14 @@ const fs = require("fs-extra")
 const path = require("path")
 const urlModule = require("url")
 
+var args = process.argv.slice(2)
+
 // BR, NX
-// const LOCALES = ["DK", "FI", "FI-SV", "FR", "DE", "GB", "IT", "MX", "NO", "ES", "SE", "NL"]
-const LOCALES = ["dk", "fi", "fi-sv"]
+// const LOCALES = ["DK", "FI", "SV-FI", "FR", "DE", "GB", "IT", "MX", "NO", "ES", "SE", "NL"]
+const LOCALES = args.length ? args : ["gb"]
 const API_ENDPOINT = "http://kitsune.dev:3100/api/pages"
 const DOMAIN = "http://inugami.dev:4000"
+const PUT_IN_FOLDERS = true
 
 const folders = {}
 
@@ -89,7 +92,7 @@ function getFolderName(curUrl, links) {
 function * run(url) {
   var nightmare = new Nightmare({
     show: false,
-    width: 1024,
+    width: 1500,
     height: 768
   })
 
@@ -109,11 +112,16 @@ function * run(url) {
 
   console.dir(url)
 
-  const folderName = getFolderName(url, browserData.links)
-  fs.ensureDirSync(path.join(__dirname, "screenshots", folderName))
+  const folderName = PUT_IN_FOLDERS
+    ? getFolderName(url, browserData.links)
+    : ""
+
+  if (PUT_IN_FOLDERS) {
+    fs.ensureDirSync(path.join(__dirname, "screenshots", folderName))
+  }
 
   yield nightmare.viewport(browserData.width, browserData.height)
-  .wait(1000)
+  .wait(1500)
   .screenshot(require("path")
   .join(__dirname, "screenshots", folderName, `${sanitize(url)}.png`))
 
